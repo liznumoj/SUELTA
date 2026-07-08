@@ -1,0 +1,12 @@
+{
+  "name": "Suelta",
+  "short_name": "Suelta",
+  "description": "Suéltalo. Yo lo ordeno.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F9F2FB",
+  "theme_color": "#C4A8E0",
+  "icons": [
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
