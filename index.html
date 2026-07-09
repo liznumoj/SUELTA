@@ -193,6 +193,13 @@ body.rec .wave span{animation:wv .7s ease-in-out infinite alternate}
 .empty{text-align:center;color:var(--ink-soft);padding:50px 20px;line-height:1.6}
 .empty .big{font-size:46px;display:block;margin-bottom:10px}
 
+/* mode selector */
+.mode-row{display:flex;gap:6px;width:100%;margin-top:8px}
+.mode-btn{flex:1;padding:10px 8px;border-radius:14px;font-weight:600;font-size:13px;
+  background:var(--card);border:1px solid var(--line);color:var(--ink-soft);
+  transition:all .2s;box-shadow:var(--shadow)}
+.mode-btn.active{background:var(--violet);color:#fff;border-color:var(--violet)}
+
 /* ═══════════ SETTINGS ═══════════ */
 .set-card{background:var(--card);border-radius:26px;padding:26px 22px;max-width:380px;width:100%;
   box-shadow:var(--shadow-lg);transition:background .3s;margin:auto 0}
@@ -253,6 +260,11 @@ body.rec .wave span{animation:wv .7s ease-in-out infinite alternate}
       <label class="alt" style="cursor:pointer"><span class="ic">🖼️</span>Galería
         <input type="file" id="galInput" accept="image/*" hidden>
       </label>
+    </div>
+    <div class="mode-row" id="modeRow">
+      <button class="mode-btn active" data-m="auto">🤖 Auto</button>
+      <button class="mode-btn" data-m="nota">📝 Nota</button>
+      <button class="mode-btn" data-m="idea">💡 Idea</button>
     </div>
     <input type="file" id="camInput" accept="image/*" capture="environment" hidden>
     <div class="quick">
@@ -401,6 +413,15 @@ $('camBtn').onclick = ()=> $('camInput').click();
 $('camInput').onchange = e=>{ if(e.target.files[0]) handleImage(e.target.files[0]); e.target.value=''; };
 $('galInput').onchange = e=>{ if(e.target.files[0]) handleImage(e.target.files[0]); e.target.value=''; };
 
+/* ═══════════ MODE SELECTOR ═══════════ */
+let captureMode = 'auto';
+document.querySelectorAll('.mode-btn').forEach(b=>{
+  b.onclick = ()=>{
+    captureMode = b.dataset.m;
+    document.querySelectorAll('.mode-btn').forEach(x=>x.classList.toggle('active', x===b));
+  };
+});
+
 /* ═══════════ TEXT ═══════════ */
 $('quickSend').onclick = sendQuick;
 $('quickTxt').addEventListener('keydown', e=>{ if(e.key==='Enter') sendQuick(); });
@@ -408,7 +429,7 @@ function sendQuick(){
   const v=$('quickTxt').value.trim();
   if(!v) return;
   $('quickTxt').value='';
-  classify({type:'text', text:v});
+  classify({type:'text', text:v, modo:captureMode});
 }
 
 /* ═══════════ PROCESSING ═══════════ */
@@ -430,11 +451,11 @@ function blobToB64(blob){
 }
 async function handleAudio(blob){
   showProc();
-  classify({type:'audio', data:await blobToB64(blob), mimeType:blob.type||'audio/webm'}, true);
+  classify({type:'audio', data:await blobToB64(blob), mimeType:blob.type||'audio/webm', modo:captureMode}, true);
 }
 async function handleImage(file){
   showProc();
-  classify({type:'image', data:await blobToB64(file), mimeType:file.type||'image/jpeg'}, true);
+  classify({type:'image', data:await blobToB64(file), mimeType:file.type||'image/jpeg', modo:captureMode}, true);
 }
 
 async function classify(payload, procShown=false){
