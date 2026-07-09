@@ -147,15 +147,16 @@ body.rec .wave span{animation:wv .7s ease-in-out infinite alternate}
 
 /* ═══════════ OVERLAYS ═══════════ */
 .overlay{position:fixed;inset:0;background:var(--overlay-bg);backdrop-filter:blur(6px);
-  display:none;align-items:center;justify-content:center;z-index:50;padding:24px}
+  display:none;align-items:flex-start;justify-content:center;z-index:50;padding:24px;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .overlay.show{display:flex}
 .proc-card{background:var(--card);border-radius:26px;padding:34px 28px;text-align:center;
-  max-width:340px;width:100%;box-shadow:var(--shadow-lg);transition:background .3s}
+  max-width:340px;width:100%;box-shadow:var(--shadow-lg);transition:background .3s;margin:auto 0}
 .proc-card .big{font-size:44px;animation:breathe 1.2s ease-in-out infinite;display:inline-block}
 .proc-card p{margin-top:12px;font-weight:600;color:var(--ink-soft)}
 
 .done-card{background:var(--card);border-radius:26px;padding:30px 24px;text-align:center;
-  max-width:360px;width:100%;box-shadow:var(--shadow-lg);animation:pop .35s cubic-bezier(.2,1.4,.4,1);transition:background .3s}
+  max-width:360px;width:100%;box-shadow:var(--shadow-lg);animation:pop .35s cubic-bezier(.2,1.4,.4,1);
+  transition:background .3s;margin:auto 0}
 @keyframes pop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
 .done-card .dog{font-size:52px}
 .done-card h2{font-family:'Unbounded';font-size:17px;margin:10px 0 6px}
@@ -193,7 +194,7 @@ body.rec .wave span{animation:wv .7s ease-in-out infinite alternate}
 
 /* ═══════════ SETTINGS ═══════════ */
 .set-card{background:var(--card);border-radius:26px;padding:26px 22px;max-width:380px;width:100%;
-  box-shadow:var(--shadow-lg);transition:background .3s}
+  box-shadow:var(--shadow-lg);transition:background .3s;margin:auto 0}
 .set-card h2{font-family:'Unbounded';font-size:16px;margin-bottom:6px}
 .set-card p{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:14px}
 .set-card input{width:100%;border:1px solid var(--line);border-radius:14px;padding:13px 14px;
@@ -329,19 +330,16 @@ const CATS = {
 };
 const TIPO_EMOJI = {recordatorio:'⏰', tarea:'✅', nota:'📝', idea:'💡', compra:'🛒'};
 let S = { xp:0, streak:0, lastDay:null, items:[], endpoint:'' };
-let persist = true;
 
-async function loadState(){
+function loadState(){
   try{
-    const r = await window.storage.get('suelta-state');
-    if(r && r.value) S = {...S, ...JSON.parse(r.value)};
+    const raw = localStorage.getItem('suelta-state');
+    if(raw) S = {...S, ...JSON.parse(raw)};
   }catch(e){}
-  if(typeof window.storage === 'undefined') persist = false;
   render();
 }
-async function saveState(){
-  if(!persist) return;
-  try{ await window.storage.set('suelta-state', JSON.stringify(S)); }catch(e){}
+function saveState(){
+  try{ localStorage.setItem('suelta-state', JSON.stringify(S)); }catch(e){}
 }
 
 /* ═══════════ HELPERS ═══════════ */
@@ -500,7 +498,7 @@ function ingest(result){
   const gained=result.items.length*10;
   S.xp+=gained; bumpStreak();
   result.items.forEach(it=>{
-    it.id=it.id||(Date.now()+Math.random());
+    it.id=it.id||(Date.now().toString(36)+Math.random().toString(36).slice(2,7));
     it.hecho=false; it.capturado=new Date().toISOString();
     S.items.unshift(it);
   });
@@ -532,8 +530,8 @@ function itemHTML(it){
     </div>
     ${it.primer_paso?`<div class="paso"><b>PRIMER PASO (5 MIN)</b>${esc(it.primer_paso)}</div>`:''}
     ${it.id?`<div class="acts">
-      <button class="ok-btn" onclick="marcarHecho(${it.id})">${it.hecho?'↩︎ Deshacer':'✓ Hecho'}</button>
-      <button onclick="borrarItem(${it.id})">🗑</button>
+      <button class="ok-btn" onclick="marcarHecho('${it.id}')">${it.hecho?'↩︎ Deshacer':'✓ Hecho'}</button>
+      <button onclick="borrarItem('${it.id}')">🗑</button>
     </div>`:''}
   </div>`;
 }
@@ -572,7 +570,7 @@ function syncBackend(action,id){
     body:JSON.stringify({type:action,id:String(id)})}); }catch(e){}
 }
 window.marcarHecho=id=>{
-  const it=S.items.find(i=>i.id===id);
+  const it=S.items.find(i=>String(i.id)===String(id));
   if(!it) return;
   it.hecho=!it.hecho;
   if(it.hecho){ S.xp+=15; toast('✓ ¡Hecho! +15 XP ⚡'); }
@@ -580,7 +578,7 @@ window.marcarHecho=id=>{
   saveState(); render();
 };
 window.borrarItem=id=>{
-  S.items=S.items.filter(i=>i.id!==id);
+  S.items=S.items.filter(i=>String(i.id)!==String(id));
   syncBackend('delete',id);
   saveState(); render(); toast('Eliminado');
 };
@@ -591,10 +589,16 @@ $('setCancel').onclick=()=> $('setOv').classList.remove('show');
 $('setSave').onclick=()=>{
   S.endpoint=$('epInput').value.trim();
   saveState(); $('setOv').classList.remove('show');
+  updateGear();
   toast(S.endpoint?'Backend conectado 🔗':'Modo demo activado');
 };
+function updateGear(){
+  $('gearBtn').textContent = S.endpoint ? '⚙️' : '⚙️';
+  $('gearBtn').style.boxShadow = S.endpoint ? '0 0 0 2px var(--ok)' : 'var(--shadow)';
+}
 
 loadState();
+updateGear();
 </script>
 </body>
 </html>
