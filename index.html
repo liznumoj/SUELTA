@@ -102,6 +102,42 @@ nav{display:flex;gap:8px;padding:10px 20px}
 
 main{flex:1;display:flex;flex-direction:column;padding:0 20px 110px;overflow-y:auto}
 
+/* ═══════════ HOY (foco ADHD) ═══════════ */
+#hoyView{display:flex;flex-direction:column;gap:14px;padding-top:6px}
+.hoy-head{text-align:center;padding:6px 0 2px}
+.hoy-head h2{font-family:'Unbounded';font-size:18px;margin-bottom:4px}
+.hoy-head p{color:var(--ink-soft);font-size:14px}
+.focus-card{background:linear-gradient(145deg, var(--card), var(--bg-2));
+  border:2px solid var(--violet);border-radius:24px;padding:24px 20px;box-shadow:var(--shadow-lg);
+  text-align:center;animation:pop .4s cubic-bezier(.2,1.4,.4,1)}
+.focus-label{font-family:'Unbounded';font-size:11px;letter-spacing:.8px;color:var(--violet);margin-bottom:10px}
+.focus-card h3{font-size:20px;font-weight:700;line-height:1.3;margin-bottom:6px}
+.focus-chip{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.4px;
+  border-radius:99px;padding:4px 12px;color:#fff;margin-bottom:14px}
+.focus-paso{background:var(--paso-bg);border:1px dashed var(--ok);border-radius:14px;padding:14px;
+  margin:14px 0;font-size:15px;color:var(--ok);font-weight:600}
+.focus-paso b{display:block;font-size:11px;letter-spacing:.5px;margin-bottom:4px}
+.focus-timer{font-family:'Unbounded';font-size:40px;font-weight:600;color:var(--violet);margin:8px 0;min-height:48px}
+.focus-actions{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.btn-start{background:var(--violet);color:#fff;border-radius:16px;padding:16px;font-weight:800;font-size:17px;
+  box-shadow:0 8px 20px var(--orb-shadow);transition:transform .12s}
+.btn-start:active{transform:scale(.97)}
+.btn-done{background:var(--ok);color:#fff;border-radius:16px;padding:15px;font-weight:700;font-size:16px}
+.btn-skip{background:transparent;color:var(--ink-soft);padding:10px;font-weight:600;font-size:14px}
+.up-next{margin-top:6px}
+.up-next .sec-title{margin-bottom:8px}
+.mini-item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+  border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow)}
+.mini-item .mini-num{width:24px;height:24px;border-radius:50%;background:var(--bg-2);display:grid;place-items:center;
+  font-weight:800;font-size:13px;color:var(--ink-soft);flex-shrink:0}
+.mini-item .mini-t{flex:1;font-size:14px;font-weight:600}
+.hoy-empty{text-align:center;color:var(--ink-soft);padding:50px 20px;line-height:1.6}
+.hoy-empty .big{font-size:52px;display:block;margin-bottom:12px}
+.hoy-done-all{text-align:center;padding:40px 20px}
+.hoy-done-all .big{font-size:60px;display:block;margin-bottom:12px}
+.hoy-done-all h3{font-family:'Unbounded';font-size:18px;margin-bottom:6px}
+.hoy-done-all p{color:var(--ink-soft);font-size:15px;line-height:1.5}
+
 /* ═══════════ CAPTURE ═══════════ */
 #capView{display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:8px}
 .hint{color:var(--ink-soft);font-size:15px;text-align:center;min-height:22px}
@@ -240,11 +276,14 @@ body.rec .wave span{animation:wv .7s ease-in-out infinite alternate}
 </div>
 
 <nav>
-  <button class="tab on" id="tabCap">Capturar</button>
+  <button class="tab on" id="tabHoy">🎯 Hoy</button>
+  <button class="tab" id="tabCap">Capturar</button>
   <button class="tab" id="tabInbox">Inbox <span class="n" id="inboxN">0</span></button>
 </nav>
 
 <main>
+  <section id="hoyView"></section>
+
   <section id="capView">
     <p class="hint" id="hint">Suéltalo. <b>Yo lo ordeno.</b></p>
     <div class="orb-wrap">
@@ -370,13 +409,17 @@ function bumpStreak(){
 }
 
 /* ═══════════ TABS ═══════════ */
+$('tabHoy').onclick = ()=> setTab('hoy');
 $('tabCap').onclick = ()=> setTab('cap');
 $('tabInbox').onclick = ()=> setTab('inbox');
 function setTab(t){
+  $('tabHoy').classList.toggle('on', t==='hoy');
   $('tabCap').classList.toggle('on', t==='cap');
   $('tabInbox').classList.toggle('on', t==='inbox');
+  $('hoyView').style.display = t==='hoy'?'flex':'none';
   $('capView').style.display = t==='cap'?'flex':'none';
   $('inboxView').style.display = t==='inbox'?'flex':'none';
+  if(t==='hoy') renderHoy();
 }
 
 /* ═══════════ AUDIO ═══════════ */
@@ -412,6 +455,106 @@ function stopRec(){
 $('camBtn').onclick = ()=> $('camInput').click();
 $('camInput').onchange = e=>{ if(e.target.files[0]) handleImage(e.target.files[0]); e.target.value=''; };
 $('galInput').onchange = e=>{ if(e.target.files[0]) handleImage(e.target.files[0]); e.target.value=''; };
+
+/* ═══════════ HOY (foco ADHD) ═══════════ */
+let focusTimer=null, focusSecs=0;
+
+function tareasAccionables(){
+  return S.items.filter(i=>!i.hecho && ['recordatorio','tarea','compra'].includes(i.tipo))
+    .sort((a,b)=>{
+      const ua=a.urgencia==='alta'?0:1, ub=b.urgencia==='alta'?0:1;
+      if(ua!==ub) return ua-ub;
+      return (a.fecha||'9999').localeCompare(b.fecha||'9999');
+    });
+}
+
+function renderHoy(){
+  const list=tareasAccionables();
+  const v=$('hoyView');
+  if(focusTimer){ clearInterval(focusTimer); focusTimer=null; }
+
+  if(!list.length){
+    v.innerHTML=`<div class="hoy-done-all">
+      <span class="big">🎉</span>
+      <h3>¡Nada pendiente!</h3>
+      <p>No tienes tareas operativas por ahora.<br>Disfruta el momento — te lo ganaste. 🐾</p>
+    </div>`;
+    return;
+  }
+
+  const focus=list[0];
+  const cat=CATS[focus.categoria]||CATS.PERSONAL;
+  const upNext=list.slice(1,4);
+
+  v.innerHTML=`
+    <div class="hoy-head">
+      <h2>🎯 Tu foco ahora</h2>
+      <p>${list.length} pendiente${list.length!==1?'s':''} · pero solo importa <b>uno</b></p>
+    </div>
+    <div class="focus-card">
+      <div class="focus-label">${focus.urgencia==='alta'?'🚨 LO MÁS URGENTE':'⭐ EMPIEZA POR AQUÍ'}</div>
+      <h3>${TIPO_EMOJI[focus.tipo]||'📌'} ${esc(focus.titulo)}</h3>
+      <div class="focus-chip" style="background:${cat.c}">${focus.categoria}</div>
+      ${focus.primer_paso?`<div class="focus-paso"><b>👟 PRIMER PASO (5 MIN)</b>${esc(focus.primer_paso)}</div>`
+        :`<div class="focus-paso"><b>👟 EMPIEZA PEQUEÑO</b>Solo ábrelo. 5 minutos. Nada más.</div>`}
+      <div class="focus-timer" id="focusTimer"></div>
+      <div class="focus-actions">
+        <button class="btn-start" id="btnStart">▶️ Empezar 5 min</button>
+        <button class="btn-done" onclick="completarFoco('${focus.id}')">✓ Ya lo hice</button>
+        <button class="btn-skip" onclick="posponerFoco('${focus.id}')">Ahora no puedo → siguiente</button>
+      </div>
+    </div>
+    ${upNext.length?`<div class="up-next">
+      <div class="sec-title">DESPUÉS (no ahora)</div>
+      ${upNext.map((it,i)=>`<div class="mini-item">
+        <span class="mini-num">${i+2}</span>
+        <span class="mini-t">${TIPO_EMOJI[it.tipo]||'📌'} ${esc(it.titulo)}</span>
+      </div>`).join('')}
+    </div>`:''}
+  `;
+
+  $('btnStart').onclick=iniciarFoco5min;
+}
+
+function iniciarFoco5min(){
+  focusSecs=5*60;
+  $('btnStart').textContent='⏸️ En foco…';
+  $('btnStart').style.background='var(--ok)';
+  const tel=$('focusTimer');
+  const tick=()=>{
+    const m=Math.floor(focusSecs/60), s=focusSecs%60;
+    tel.textContent=`${m}:${String(s).padStart(2,'0')}`;
+    if(focusSecs<=0){
+      clearInterval(focusTimer); focusTimer=null;
+      tel.textContent='¡Bien! 🎉';
+      toast('¡Lograste tus 5 min! Sigue si puedes 💪');
+      if('speechSynthesis' in window){
+        try{const u=new SpeechSynthesisUtterance('Lo lograste. Cinco minutos completos. Puedes seguir o marcarlo hecho.');u.lang='es-ES';speechSynthesis.speak(u);}catch(e){}
+      }
+      return;
+    }
+    focusSecs--;
+  };
+  tick();
+  focusTimer=setInterval(tick,1000);
+}
+
+window.completarFoco=id=>{
+  const it=S.items.find(i=>String(i.id)===String(id));
+  if(it){ it.hecho=true; S.xp+=15; syncBackend('done',id); }
+  if(focusTimer){ clearInterval(focusTimer); focusTimer=null; }
+  saveState();
+  toast('✓ ¡Hecho! +15 XP ⚡ Una menos 🎉');
+  render(); renderHoy();
+};
+window.posponerFoco=id=>{
+  const it=S.items.find(i=>String(i.id)===String(id));
+  if(it){ it._pospuesto=(it._pospuesto||0)+1;
+    S.items.splice(S.items.indexOf(it),1); S.items.push(it);
+  }
+  if(focusTimer){ clearInterval(focusTimer); focusTimer=null; }
+  saveState(); renderHoy();
+};
 
 /* ═══════════ MODE SELECTOR ═══════════ */
 let captureMode = 'auto';
@@ -620,6 +763,7 @@ function updateGear(){
 
 loadState();
 updateGear();
+setTab('hoy');
 </script>
 </body>
 </html>
